@@ -187,9 +187,9 @@ const amMainColor = 'FCB126';
 
 // Extract arguments or use default values if not provided
 const userProjectName = options['project-name'] || options['p']; // || amUniName;
-const userFullName = options['full-name'] || options['f']; // || amFullName;
-const userShortName = options['short-name'] || options['s']; // || amShortName;
-const userOrganizationName = options['organization-name'] || options['o']; // || 'applimode';
+const userFullName = options['full-name'] || options['f'] || userProjectName; // || amFullName;
+const userShortName = options['short-name'] || options['s'] || userFullName || userProjectName; // || amShortName;
+const userOrganizationName = options['organization-name'] || options['o'] || amOrgnizationName; // || 'applimode';
 const userFirebaseName = options['firebase-name'] || options['b']; // || amFbName;
 const userProjectFolderName = options['directory-name'] || options['d'];
 const userCloudflareWorkerKey = options['worker-key'] || options['w'];
@@ -208,8 +208,8 @@ const envFile = '.env';
 // init applimode
 async function initApplimode() {
   // check the parameters are empty
-  if (isEmpty(userProjectName) || isEmpty(userFullName) || isEmpty(userShortName) || isEmpty(userOrganizationName) || isEmpty(userFirebaseName)) {
-    console.log('Enter the project name, full app name, short app name, organization name, and Firebase project name.\n프로젝트이름, 앱이름, 짧은 앱이름, 조직이름, 파이어베이이스 프로젝트이름을 입력하세요.');
+  if (isEmpty(userProjectName) || isEmpty(userFirebaseName)) {
+    console.log('Enter the project name and Firebase project id.\n프로젝트이름, 파이어베이이스 프로젝트ID를 입력하세요.');
     return;
   }
 
