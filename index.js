@@ -3,6 +3,7 @@ const path = require('path');
 
 const check_eng = /^[a-zA-Z]*$/;
 const check_projectName = /^[a-zA-Z_\- ]*$/;
+const check_version = /([0-9]+)\.([0-9]+)\.([0-9]+)\+([0-9]+)/;
 const check_spc = /[~!@#$%^&*()_+|<>?:{}]/;
 
 class Settings {
@@ -121,17 +122,17 @@ function getNewCumtomSettingsStr(importsList, newCustomSettingsList, userCustomS
 
 async function copyFiles(sourceDir, destinationDir) {
   try {
-      const files = await fs.readdir(sourceDir);
-      
-      for (const file of files) {
-          const sourceFile = path.join(sourceDir, file);
-          const destinationFile = path.join(destinationDir, file);
+    const files = await fs.readdir(sourceDir);
 
-          await fs.copyFile(sourceFile, destinationFile);
-          console.log(`copied ${file} to ${destinationDir}`);
-      }
+    for (const file of files) {
+      const sourceFile = path.join(sourceDir, file);
+      const destinationFile = path.join(destinationDir, file);
+
+      await fs.copyFile(sourceFile, destinationFile);
+      console.log(`copied ${file} to ${destinationDir}`);
+    }
   } catch (err) {
-      console.error('Error moving files:', err);
+    console.error('Error moving files:', err);
   }
 }
 
@@ -165,6 +166,47 @@ function parseArgs(args) {
   return options;
 }
 
+async function getAmMainDirectoryName(arg) {
+  const isAmMainDirectory = await checkDirectoryExists('./../applimode-main');
+  if (!isEmpty(arg)) {
+    return arg;
+  } else if (isAmMainDirectory) {
+    return 'applimode-main';
+  } else {
+    return 'applimode';
+  }
+}
+
+function getVersionMatch(pubspecFile) {
+  const pubspecLines = pubspecFile.split('\n');
+  for (let line of pubspecLines) {
+    if (line.startsWith('version:')) {
+      return line.match(check_version);
+    }
+  }
+  return '0.0.0+0'.match(check_version);
+}
+
+async function isLatestVersion(newPubspecPath, userPubspecPath) {
+  const newPubspecFile = await fs.readFile(newPubspecPath, 'utf8');
+  const userPubspecFile = await fs.readFile(userPubspecPath, 'utf8');
+
+  const newMatch = getVersionMatch(newPubspecFile);
+  const userMatch = getVersionMatch(userPubspecFile);
+
+  const [newVersion, newMajor, newMinor, newPatch, newBuild] = [newMatch[0], parseInt(newMatch[1]), parseInt(newMatch[2]), parseInt(newMatch[3]), parseInt(newMatch[4])];
+  const [userVersion, userMajor, userMinor, userPatch, userBuild] = [userMatch[0], parseInt(userMatch[1]), parseInt(userMatch[2]), parseInt(userMatch[3]), parseInt(userMatch[4])];
+
+  console.log(`newVersion: ${newVersion}`);
+  console.log(`userVersion: ${userVersion}`);
+
+  if (!(newMajor > userMajor || newMajor == userMajor && newMinor > userMinor || newMajor == userMajor && newMinor == userMinor && newPatch > userPatch || newMajor == userMajor && newMinor == userMinor && newPatch == userPatch && newBuild > userBuild) || newVersion == '0.0.0+0' || userVersion == '0.0.0+0') {
+    return true;
+  } else {
+    return false;
+  }
+}
+
 // Get command-line arguments
 const command = process.argv.slice(2, 3);
 const args = process.argv.slice(3); // Skip first two arguments (node and script filename)
@@ -173,7 +215,6 @@ const args = process.argv.slice(3); // Skip first two arguments (node and script
 const options = parseArgs(args);
 
 // define defalut names
-const amMainName = 'applimode-main';
 const amAndBundleId = 'applimode.my_applimode';
 const amIosBundleId = 'applimode.myApplimode'
 const amUniName = 'my_applimode';
@@ -194,16 +235,12 @@ const userFirebaseName = options['firebase-name'] || options['b']; // || amFbNam
 const userProjectFolderName = options['directory-name'] || options['d'];
 const userCloudflareWorkerKey = options['worker-key'] || options['w'];
 const userMainColor = options['main-color'] || options['c'];
-const amMainDirectoryName = options['main-name'] || options['m'] || amMainName;
+const amMainDirectoryName = options['main-name'] || options['m'];
 
 const projectsPath = './../';
-const amMainRootPath = `./../${amMainDirectoryName}`;
-const amMainLibPath = `${amMainRootPath}/lib`
-const organizationPath = `${amMainRootPath}/android/app/src/main/kotlin/com`
-const andBundleIdPath = `${amMainRootPath}/android/app/src/main/kotlin/com/applimode`
-
 const customSettingsFile = 'custom_settings.dart';
 const envFile = '.env';
+const pubspecFile = 'pubspec.yaml';
 
 // init applimode
 async function initApplimode() {
@@ -218,11 +255,16 @@ async function initApplimode() {
     console.log('Project name, organization name, and Firebase project name are only available in English.\n프로젝트이름, 조직이름, 파이어베이이스 프로젝트이름은 영어만 가능합니다.');
     return;
   }
-  
+
+  const amMainDirName = await getAmMainDirectoryName(amMainDirectoryName);
+  const amMainRootPath = `./../${amMainDirName}`;
+  const organizationPath = `${amMainRootPath}/android/app/src/main/kotlin/com`
+  const andBundleIdPath = `${amMainRootPath}/android/app/src/main/kotlin/com/applimode`
+
   // check the main directory exists
   const checkMainDirectory = await checkDirectoryExists(amMainRootPath);
   if (!checkMainDirectory) {
-    console.log(`The ${amMainDirectoryName} directory does not exist.\n${amMainDirectoryName} 디렉토리가 존재하지 않습니다.`);
+    console.log(`The ${amMainDirName} directory does not exist.\n${amMainDirName} 디렉토리가 존재하지 않습니다.`);
     return;
   }
 
@@ -271,7 +313,7 @@ async function initApplimode() {
 
   await fs.rename(path.join(andBundleIdPath, amUniName), path.join(andBundleIdPath, underbarName));
   await fs.rename(path.join(organizationPath, amOrgnizationName), path.join(organizationPath, appOrganizationName));
-  await fs.rename(path.join(projectsPath, amMainDirectoryName), path.join(projectsPath, underbarName));
+  await fs.rename(path.join(projectsPath, amMainDirName), path.join(projectsPath, underbarName));
 
   console.log('Applimode initialization was successful.');
 }
@@ -283,6 +325,12 @@ async function upgradeApplimode() {
     console.log('Enter the project folder name.\n프로젝트 폴더 이름을 입력하세요.');
     return;
   }
+
+  const amMainDirName = await getAmMainDirectoryName(amMainDirectoryName);
+  const amMainRootPath = `./../${amMainDirName}`;
+  const amMainLibPath = `${amMainRootPath}/lib`
+  const organizationPath = `${amMainRootPath}/android/app/src/main/kotlin/com`
+  const andBundleIdPath = `${amMainRootPath}/android/app/src/main/kotlin/com/applimode`
 
   const newRootPath = amMainRootPath;
   const userRootPath = `./../${userProjectFolderName}`;
@@ -302,6 +350,16 @@ async function upgradeApplimode() {
   const checkProjectDirectory = await checkDirectoryExists(userRootPath);
   if (!checkProjectDirectory) {
     console.log('Your project directory does not exist.\n지정한 프로젝트 디렉토리가 존재하지 않습니다.');
+    return;
+  }
+
+  const newPubspecPath = path.join(newRootPath, pubspecFile);
+  const userPubspecPath = path.join(userRootPath, pubspecFile);
+
+  const isLatest = await isLatestVersion(newPubspecPath, userPubspecPath);
+
+  if (isLatest) {
+    console.log('Your Applimode is up to date.\n현재 최신버전을 사용중입니다.');
     return;
   }
 
@@ -371,7 +429,7 @@ async function upgradeApplimode() {
   // applimode-main/android/app/src/main/kotlin/com/applimode/my_applimode/MainActivity.kt
   await fs.rename(path.join(andBundleIdPath, amUniName), path.join(andBundleIdPath, underbarAppName));
   await fs.rename(path.join(organizationPath, amOrgnizationName), path.join(organizationPath, organizationName));
-  
+
   // generate custom_settings file
   const newUserCustomSettingsStr = getNewCumtomSettingsStr(importsList, newCustomSettingsList, userCustomSettingsList);
   await fs.writeFile(newCustomSettingsPath, newUserCustomSettingsStr, 'utf8');
@@ -384,7 +442,7 @@ async function upgradeApplimode() {
 
   // rename directories name
   await fs.rename(path.join(projectsPath, userProjectFolderName), path.join(projectsPath, `${userProjectFolderName}_old`));
-  await fs.rename(path.join(projectsPath, amMainDirectoryName), path.join(projectsPath, userProjectFolderName));
+  await fs.rename(path.join(projectsPath, amMainDirName), path.join(projectsPath, userProjectFolderName));
 
   console.log('Applimode upgrade was successful.');
 }
@@ -405,5 +463,3 @@ fs.access(projectsPath)
     console.error('Error:', err);
     process.exit(1);
   });
-
-
