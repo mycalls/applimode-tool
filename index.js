@@ -241,6 +241,9 @@ const projectsPath = './../';
 const customSettingsFile = 'custom_settings.dart';
 const envFile = '.env';
 const pubspecFile = 'pubspec.yaml';
+const indexFile = 'index.html';
+const fbMessageFile = 'firebase-messaging-sw.js';
+const manifestFile = 'manifest.json';
 
 // init applimode
 async function initApplimode() {
@@ -338,6 +341,8 @@ async function upgradeApplimode() {
   const userLibPath = `${userRootPath}/lib`;
   const newImagesPath = `${amMainRootPath}/assets/images`;
   const userImagesPath = `${userRootPath}/assets/images`;
+  const newWebPath = `${amMainRootPath}/web`;
+  const userWebPath = `${userRootPath}/web`;
 
   // check the main directory exists
   const checkMainDirectory = await checkDirectoryExists(amMainRootPath);
@@ -367,11 +372,20 @@ async function upgradeApplimode() {
   const userEnvPath = path.join(userRootPath, envFile);
   const newCustomSettingsPath = path.join(newLibPath, customSettingsFile);
   const userCustomSettingsPath = path.join(userLibPath, customSettingsFile);
+  const newIndexPath = path.join(newWebPath, indexFile);
+  const userIndexPath = path.join(userWebPath, indexFile);
+  const newFbMessagePath = path.join(newWebPath, fbMessageFile);
+  const userFbMessagePath = path.join(userWebPath, fbMessageFile);
+  const newManifestPath = path.join(newWebPath, manifestFile);
+  const userManifestPath = path.join(userWebPath, manifestFile);
 
   // const newEnvFile = await fs.readFile(newEnvPath, 'utf8');
   const userEnvFile = await fs.readFile(userEnvPath, 'utf8');
   const newCustomSettingsFile = await fs.readFile(newCustomSettingsPath, 'utf8');
   const userCustomSettingsFile = await fs.readFile(userCustomSettingsPath, 'utf8');
+  const userIndexFile = await fs.readFile(userIndexPath, 'utf8');
+  const userFbMessageFile = await fs.readFile(userFbMessagePath, 'utf8');
+  const userManifestFile = await fs.readFile(userManifestPath, 'utf8');
 
   let fullAppName = '';
   let shortAppName = '';
@@ -436,6 +450,15 @@ async function upgradeApplimode() {
 
   // generate .env file
   await fs.writeFile(newEnvPath, userEnvFile, 'utf8');
+
+  // copy user's index.html file
+  await fs.writeFile(newIndexPath, userIndexFile, 'utf8');
+
+  // copy user's firebase-messaging-sw.js file
+  await fs.writeFile(newFbMessagePath, userFbMessageFile, 'utf8');
+
+  // copy user's mainfest.json file
+  await fs.writeFile(newManifestPath, userManifestFile, 'utf8');
 
   // move images
   await copyFiles(userImagesPath, newImagesPath);
